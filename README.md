@@ -1,21 +1,25 @@
-# scxml4py
+scxml4py
+========
 
 `scxml4py` is a Python implementation of an SCXML (State Chart XML) interpreter with a programmatic API.  
-It allows you to execute SCXML documents, interact with the state machine during runtime, and hook into state transitions and events — making it useful for animations, simulations, or embedded reactive systems.
+It allows execution of SCXML documents and interaction with the interpreter at runtime through a clean, flexible API. The framework is designed for applications such as simulations, reactive systems, robotics, and UI-driven state animations.
 
 ---
 
-## ✨ Features
+Features
+--------
 
 - ✅ Execute SCXML state machines in Python
-- ✅ Control the state machine via a simple API
-- ✅ Register custom actions and activities
-- ✅ Hook into state changes and events with listeners (great for visualizations or UI feedback)
-- ✅ Clean architecture for integration into your systems
+- ✅ Control the interpreter at runtime through a Python API
+- ✅ Register custom `Action` and `Activity` classes
+- ✅ Listen to state configuration changes and event dispatches
+- ✅ Shared Python `Data` object for interaction between actions and activities
+- ✅ Simple threading model for concurrent behaviors
 
 ---
 
-## 🚀 Quick Start
+Example
+-------
 
 ```python
 import logging
@@ -27,35 +31,55 @@ from scxml4py.action import Action
 from scxml4py.activity import ThreadedActivity
 from scxml4py.event import Event
 
+class ActionStatusListener(Action):
+    def __init__(self, theData):
+        super().__init__("ActionStatusListener", None, theData)
+
+    def execute(self, status):
+        # This method is executed when the SCXML engine executes the Status action.
+        # Its exact invocation depends on your SCXML model.
+        # For example, it can be bound to a <transition>, <onentry>, or <onexit> element.
+        # In your model, this action is triggered by an internal transition on the "Status" event.
+        logging.getLogger("scxml4py").info(
+            ">>>>ActionStatusListener::nb Status: <" + scxml4py.helper.formatStatus(status) + ">"
+        )
+
+class ActionEventListener(Action):
+    def __init__(self, theData):
+        super().__init__("ActionEventListener", None, theData)
+
+    def execute(self, event):
+        logging.getLogger("scxml4py").info(">>>>ActionEventListener::nb Event received")
+        print(event.getStatus())
+
 class ActivityOnline(ThreadedActivity):
-    # implemented by the developer, stub can be generated
     def __init__(self, theEventQueue, theData):
-        ThreadedActivity.__init__(self, "ActivityOnline", theEventQueue, theData)
+        super().__init__("ActivityOnline", theEventQueue, theData)
 
     def run(self):
         counter = 0
-        while self.isRunning() == True:
+        while self.isRunning():
             logging.getLogger("scxml4py").info("Activity <" + self.getId() + "> is running...")
             time.sleep(1)
             counter += 1
             if counter == 5:
                 self.sendInternalEvent(Event("GoOffline"))
                 self.setRunning(False)
-                break
-            
-class Data(object):
-    # implemented by the developer
-    # data shared between actions and activities
+
+class Data:
     def __init__(self):
         self.mSharedInfo = None
-    
+
     def getSharedInfo(self):
-        # requires mutex
         return self.mSharedInfo
-    
+
     def setSharedInfo(self, sharedInfo):
-        # requires mutex
         self.mSharedInfo = sharedInfo
+
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(threadName)s - %(module)s - %(funcName)s - %(message)s',
+    level=logging.DEBUG
+)
 
 simpleSM_string = '''<?xml version="1.0" ?>
 <scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" datamodel="ecmascript" initial="OFF">
@@ -68,73 +92,116 @@ simpleSM_string = '''<?xml version="1.0" ?>
   </state>
 </scxml>'''
 
-# SCXML source and data setup
 simple_sm_data = Data()
 simple_sm = Application(
-    simpleSM_string, 
-    actions=[ActionStatus], 
-    activities=[ActivityOnline], 
+    scxmlDoc=simpleSM_string,
+    actions=[ActionStatusListener, ActionEventListener],
+    activities=[ActivityOnline],
     data=simple_sm_data
 )
 
-# Start the state machine
 simple_sm.start()
-
-# Interact with it
-simple_sm.send_signal("GoOnline", True)
-status = simple_sm.get_current_status()
-
-simple_sm.send_signal("GoOffline", True)
-status = simple_sm.get_current_status()
-
-print(">>>>>>", status)
-
-# Clean termination
+simple_sm.send_signal("GoOnline", rtc_block=True)
+print(">>>>>>", simple_sm.get_current_status())
+time.sleep(10)
+simple_sm.send_signal("GoOffline", rtc_block=True)
+print(">>>>>>", simple_sm.get_current_status())
 simple_sm.terminate()
 ```
 
 ---
 
-## 🔌 Extensibility
+Listener Interfaces
+-------------------
 
-You can define your own `Action` and `Activity` classes to extend behavior. These can interact with the SCXML runtime and external systems.
+To respond to state changes and events during execution, implement listener interfaces:
 
-### Example: Custom Action
+- `StatusListener`: receives current state configuration updates.
+- `EventListener`: receives dispatched events.
+
+These can be combined with actions. For example:
 
 ```python
-class ActionStatus(Action):
-    def __init__(self, data):
-        self.data = data
-
-    def execute(self):
-        print("Status Action Executed")
+class ActionStatus(Action, StatusListener, EventListener):
+    def notify(self, update):
+        print("Received update:", update)
 ```
 
 ---
 
-## 🎯 Use Cases
+Note on Data Model
+------------------
 
-- Simulation engines with event-driven state models
-- GUI applications with animated state transitions
-- Lightweight embedded state machines in Python systems
-- Robotics or IoT orchestration using reactive logic
+The SCXML `<data>` model is **not implemented**. Instead, a custom Python `Data` class is used to store and share state among `Action` and `Activity` instances.
 
 ---
 
-## 🔍 Listeners
+Application API
+---------------
 
-You can register listeners on:
+### `Application(scxmlDoc: str, actions, activities, data)`
 
-- **State configuration changes**
-- **Events triggered during execution**
+| Parameter    | Type      | Description |
+|--------------|-----------|-------------|
+| `scxmlDoc`   | `str`     | The SCXML document as a string |
+| `actions`    | `list`    | List of `Action` classes to instantiate |
+| `activities` | `list`    | List of `Activity` classes to instantiate |
+| `data`       | `object`  | Shared Python data object |
 
-This makes it ideal for visualizing execution or syncing with front-end UIs.
+### `start()`
+Starts the interpreter in a background thread.
+
+### `terminate()`
+Stops the interpreter by sending an `_EXIT` event and waiting for all threads to finish.
+
+### `send_signal(signal_name: str, sync: bool = True, rtc_block: bool = True)`
+Sends an external event (signal) to the state machine.
+
+- `sync`: if `True`, the event is synchronized.
+- `rtc_block`: if `True`, waits until the SCXML engine finishes processing the event.
+
+### `get_current_status() -> str`
+Returns a human-readable string showing the currently active state(s).
 
 ---
 
-## 📦 Installation
+Writing Actions & Activities
+----------------------------
 
-Clone and install in editable mode:
+### `class Action`
+
+Subclass and implement:
+
+```python
+def execute(self):
+    pass
+```
+
+The `execute()` method is called when your action is triggered by SCXML elements:
+- `<transition>` → when the event occurs
+- `<onentry>` / `<onexit>` → when entering/exiting a state
+- Internal transitions (e.g., the `Status` event in your model)
+
+### `class ThreadedActivity`
+
+Subclass and implement:
+
+```python
+def run(self):
+    while self.isRunning():
+        ...
+```
+
+Send events from within the activity:
+
+```python
+self.sendInternalEvent(Event("EventName"))
+```
+
+---
+
+Installation
+------------
 
 ```bash
 git clone https://github.com/openmbee/scxml4py.git
@@ -144,179 +211,23 @@ pip install -e .
 
 ---
 
-## 🧩 Requirements
+Requirements
+------------
 
 - Python 3.10+
-- No external dependencies beyond the standard library
+- No third-party dependencies
 
 ---
 
-## References
-Visual SCXML Editor for VsCode: https://marketplace.visualstudio.com/items?itemName=Phrogz.visual-scxml-editor
+Related Tools
+-------------
+
+- [Visual SCXML Editor for VSCode](https://marketplace.visualstudio.com/items?itemName=Phrogz.visual-scxml-editor)
 
 ---
 
-## 📄 License
+License
+-------
 
-APACHE 2.0 License © 2024 Luigi Andolfato, Robert Karban
-
-
-## 📚 Application API
-
-The `Application` class provides a high-level API to load, execute, and interact with SCXML state machines.
-
----
-
-### 🔹 `Application(scxml_doc: str, actions, activities, data)`
-
-#### **Constructor**
-Initializes the SCXML engine with a state machine definition and supporting elements.
-
-| Parameter     | Type      | Description |
-|---------------|-----------|-------------|
-| `theScxmlDoc`   | `str`     | The SCXML document as a string. |
-| `actions`     | `list`    | List of `Action` classes to be instantiated and injected. |
-| `activities`  | `list`    | List of `Activity` classes to be instantiated and injected. |
-| `data`        | `Data`    | Shared data object passed to actions and activities. |
-
-#### **Example**
-```python
-engine = Application(
-    scxml_doc=some_scxml_string,
-    actions=[ActionStatus],
-    activities=[ActivityOnline],
-    data=my_data
-)
-```
-
----
-
-### 🔹 `start()`
-
-Starts the SCXML interpreter in a background thread.
-
-```python
-engine.start()
-```
-
----
-
-### 🔹 `terminate()`
-
-Gracefully terminates the interpreter by sending an `_EXIT` signal and waiting for the interpreter to shut down.
-
-```python
-engine.terminate()
-```
-
----
-
-### 🔹 `send_signal(signal_name: str, rtc_block: bool = True)`
-
-Sends an external event (signal) into the state machine.
-
-| Parameter       | Type    | Description |
-|-----------------|---------|-------------|
-| `signal_name`   | `str`   | The name of the event to trigger. |
-| `rtc_block`     | `bool`  | Whether to block the call for RTC (default: `True`). |
-
-```python
-engine.send_signal("GoOnline")
-```
-
----
-
-### 🔹 `get_current_status() → str`
-
-Returns a human-readable summary of the current active states.
-
-```python
-status = engine.get_current_status()
-print(status)
-```
----
-
-## ⚙️ Extending Behavior with Actions & Activities
-
-To inject custom behavior into your state machine, subclass the `Action` or `Activity` base classes and register them during engine initialization.
-
----
-
-### 🔹 `class Action`
-
-Base class for actions executed during SCXML transitions or states.
-
-#### 🔧 Subclass Responsibilities
-You must implement the `execute()` method.
-
-#### 🔹 `def execute(self)`
-
-Called when the SCXML interpreter executes this action (e.g., during a `<onentry>` or `<transition>`).
-
-#### ✅ Example:
-
-```python
-from scxml4py import Action
-
-class ActionStatus(Action):
-    def __init__(self, data):
-        self.data = data
-
-    def execute(self):
-        print("Executing status check")
-```
-
-Pass it to the engine:
-
-```python
-engine = SCXML_Engine(scxml_doc, actions=[ActionStatus], activities=[], data=my_data)
-```
-
----
-
-### 🔹 `class Activity`
-
-Base class for activities that run concurrently during active states (like `<invoke>` in SCXML). Activities run in their own threads.
-
-#### 🔧 Subclass Responsibilities
-You must implement the `run()` method.
-
-#### 🔹 `def run(self)`
-
-This method is executed in a separate thread when the activity is started by the SCXML interpreter. Use it to perform asynchronous or ongoing work.
-
-#### ✅ Example:
-
-```python
-from scxml4py import Activity
-
-class ActivityOnline(ThreadedActivity):
-    def __init__(self, event_queue, data):
-        self.event_queue = event_queue
-        self.data = data
-
-    def run(self):
-        print("Activity started")
-        # Optionally send events to the state machine
-        self.event_queue.put(Event("SomeInternalEvent"))
-```
-
-Register the activity:
-
-```python
-engine = Application(scxml_doc, actions=[], activities=[ActivityOnline], data=my_data)
-```
-
----
-
-### 💡 Use Case Summary
-
-| Interface | Runs When               | Use Case                                |
-|-----------|-------------------------|------------------------------------------|
-| `Action`  | On state transitions    | Trigger logic during events             |
-| `Activity`| While state is active   | Run background tasks, pollers, workers  |
-
-
-```
-
+Apache 2.0 License © 2024 Luigi Andolfato, Robert Karban
 
