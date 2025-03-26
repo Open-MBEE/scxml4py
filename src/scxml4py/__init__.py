@@ -11,4 +11,3 @@ from .reader import *
 from .state import *
 from .stateMachine import *
 from .transition import *
-from .engine import *

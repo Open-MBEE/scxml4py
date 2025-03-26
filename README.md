@@ -22,7 +22,7 @@ import logging
 import time
 
 import scxml4py.helper
-from scxml4py.engine import SCXML_Engine
+from scxmlApp.application import Application
 from scxml4py.action import Action
 from scxml4py.activity import ThreadedActivity
 from scxml4py.event import Event
@@ -70,7 +70,7 @@ simpleSM_string = '''<?xml version="1.0" ?>
 
 # SCXML source and data setup
 simple_sm_data = Data()
-simple_sm = SCXML_Engine(
+simple_sm = Application(
     simpleSM_string, 
     actions=[ActionStatus], 
     activities=[ActivityOnline], 
@@ -161,27 +161,27 @@ Visual SCXML Editor for VsCode: https://marketplace.visualstudio.com/items?itemN
 APACHE 2.0 License © 2024 Luigi Andolfato, Robert Karban
 
 
-## 📚 SCXML_Engine API
+## 📚 Application API
 
-The `SCXML_Engine` class provides a high-level API to load, execute, and interact with SCXML state machines.
+The `Application` class provides a high-level API to load, execute, and interact with SCXML state machines.
 
 ---
 
-### 🔹 `SCXML_Engine(scxml_doc: str, actions, activities, data)`
+### 🔹 `Application(scxml_doc: str, actions, activities, data)`
 
 #### **Constructor**
 Initializes the SCXML engine with a state machine definition and supporting elements.
 
 | Parameter     | Type      | Description |
 |---------------|-----------|-------------|
-| `scxml_doc`   | `str`     | The SCXML document as a string. |
+| `theScxmlDoc`   | `str`     | The SCXML document as a string. |
 | `actions`     | `list`    | List of `Action` classes to be instantiated and injected. |
 | `activities`  | `list`    | List of `Activity` classes to be instantiated and injected. |
 | `data`        | `Data`    | Shared data object passed to actions and activities. |
 
 #### **Example**
 ```python
-engine = SCXML_Engine(
+engine = Application(
     scxml_doc=some_scxml_string,
     actions=[ActionStatus],
     activities=[ActivityOnline],
@@ -304,7 +304,7 @@ class ActivityOnline(ThreadedActivity):
 Register the activity:
 
 ```python
-engine = SCXML_Engine(scxml_doc, actions=[], activities=[ActivityOnline], data=my_data)
+engine = Application(scxml_doc, actions=[], activities=[ActivityOnline], data=my_data)
 ```
 
 ---

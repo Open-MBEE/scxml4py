@@ -49,8 +49,8 @@ class Event(object):
     def getType(self, theType):
         self.mType = theType
         
-    def getStatus(self, theStatus):
-        self.mStatus = theStatus
+    def getStatus(self):
+        return(self.mStatus)
             
     def setId(self, theId):
         self.mId = theId
