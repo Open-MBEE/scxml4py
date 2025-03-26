@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name='scxml4py',
-    version='0.1.0',
-    author='Robert Karban',
+    version='0.2.0',
+    author='Robert Karban, Luigi Andolfato',
     author_email='karbanite.engineering@gmail.com',
     description='SCXML library for Python',
     long_description = open("README.md", encoding="utf-8").read(),
