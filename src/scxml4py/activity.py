@@ -58,7 +58,7 @@ class ThreadedActivity(AbstractActivity):
         self.mThread = None
         
     def start(self):
-        if self.mThread and self.mThread.isAlive():
+        if self.mThread and self.mThread.is_alive():
             logger.debug("Activity <%s> already started"%self)
             return
         
